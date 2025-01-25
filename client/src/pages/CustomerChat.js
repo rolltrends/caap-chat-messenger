@@ -3,58 +3,49 @@ import { io } from 'socket.io-client';
 import { TextField, Button, Box, Typography, Paper } from '@mui/material';
 
 const CustomerChat = () => {
-  const [socket, setSocket] = useState(null);
-  const [chatID, setChatID] = useState(null);
-  const [username, setUsername] = useState('');
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([]);
+  const [socket, setSocket] = useState(null); // Socket.IO instance
+  const [chatID, setChatID] = useState(null); // Customer's chat ID
+  const [username, setUsername] = useState(''); // Customer's username
+  const [message, setMessage] = useState(''); // Message input
+  const [messages, setMessages] = useState([]); // Chat messages
 
+  // Initialize Socket.IO connection
   useEffect(() => {
-    const newSocket = io('http://192.168.1.3:4000');
-    // const newSocket = io(process.env.REACT_APP_API_URL);
+    const newSocket = io('http://localhost:4000'); // Connect to the server
     setSocket(newSocket);
 
-    return () => newSocket.close(); // Cleanup on unmount
+    return () => newSocket.close(); // Clean up connection on component unmount
   }, []);
 
+  // Start a new chat
   const handleStartChat = () => {
     if (!username.trim()) return;
 
-    socket.emit('createChat', { username });
-    socket.on('chatID', ({ chatID }) => setChatID(chatID));
-    socket.on('chatHistory', (history) => setMessages(history));
+    socket.emit('createChat', { username }); // Notify the server of the new chat
+    socket.on('chatID', ({ chatID }) => setChatID(chatID)); // Set the chat ID
+    socket.on('chatHistory', setMessages); // Update messages state with chat history
   };
 
-  // Send message from customer to admin
+  // Send a message
   const handleSendMessage = () => {
     if (!message.trim()) return;
 
-    // Send message with the sender as "You"
-    socket.emit('sendMessage', { chatID, message, sender: 'You', receiver: 'Admin' });
-
-    // Update local state to reflect the new message
-    setMessages((prev) => [...prev, { sender: 'You', text: message }]);
-
-    setMessage(''); // Clear message input after sending
+    socket.emit('sendMessage', { chatID, message, sender: 'You', receiver: 'Agent' }); // Notify server
+    setMessages((prev) => [...prev, { sender: 'You', text: message }]); // Update local messages
+    setMessage(''); // Clear message input
   };
 
-  // Receive message (either from admin or another source)
+  // Receive messages from the server
   useEffect(() => {
     if (!socket || !chatID) return;
 
     socket.on('receiveMessage', (msg) => {
       if (msg.chatID === chatID) {
-        setMessages((prevMessages) => {
-          // Avoid duplicating the same message
-          if (!prevMessages.some((m) => m.text === msg.text && m.sender === msg.sender)) {
-            return [...prevMessages, msg];
-          }
-          return prevMessages;
-        });
+        setMessages((prev) => [...prev, msg]); // Update messages
       }
     });
 
-    return () => socket.off('receiveMessage');
+    return () => socket.off('receiveMessage'); // Clean up listener
   }, [chatID, socket]);
 
   return (
@@ -93,7 +84,7 @@ const CustomerChat = () => {
             }}
           >
             <Typography variant="h6" gutterBottom>
-              Chat with Admin
+              Chat with Agent
             </Typography>
             {messages.map((msg, index) => (
               <Box key={index} sx={{ mb: 1 }}>
@@ -115,11 +106,7 @@ const CustomerChat = () => {
               onChange={(e) => setMessage(e.target.value)}
               fullWidth
             />
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSendMessage}
-            >
+            <Button variant="contained" color="primary" onClick={handleSendMessage}>
               Send
             </Button>
           </Box>

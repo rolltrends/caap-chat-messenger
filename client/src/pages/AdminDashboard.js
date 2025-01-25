@@ -1,127 +1,100 @@
 import React, { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
-import { AppBar, Container, Toolbar, Typography, Box, List, ListItem, ListItemText } from '@mui/material';
-import ChatBox from '../components/ChatBox';
+import {
+  Typography,
+  TableContainer,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Paper,
+  Container,
+} from '@mui/material';
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ socket }) => {
   const [activeChats, setActiveChats] = useState([]);
   const [inactiveChats, setInactiveChats] = useState([]);
-  const [selectedChatID, setSelectedChatID] = useState(null);
-  const [socket, setSocket] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [currentUsername, setCurrentUsername] = useState('');
 
-  // Initialize Socket.IO
   useEffect(() => {
-    const newSocket = io('http://192.168.1.3:4000');
-    setSocket(newSocket);
+    // Listen for updates from the server
+    socket.on('activeChats', (chats) => setActiveChats(chats));
+    socket.on('inactiveChats', (chats) => setInactiveChats(chats));
 
-    // Register as admin
-    newSocket.emit('registerAdmin');
-
-    // Listen for active and inactive chats
-    newSocket.on('activeChats', (chats) => setActiveChats(chats));
-    newSocket.on('inactiveChats', (chats) => setInactiveChats(chats));
-
-    // Listen for new incoming chats from customers
-    newSocket.on('newChat', (chatData) => {
-      setActiveChats((prevChats) => [...prevChats, chatData]);
-    });
-
+    // Clean up listeners on unmount
     return () => {
-      newSocket.close();
-      newSocket.off('activeChats');
-      newSocket.off('inactiveChats');
-      newSocket.off('newChat');  // Clean up the newChat listener
+      socket.off('activeChats');
+      socket.off('inactiveChats');
     };
-  }, []);
-
-  // Fetch chat history when a chat is selected
-  useEffect(() => {
-    if (!socket || !selectedChatID) return;
-
-    // Request chat history from the server
-    socket.emit('selectChat', { chatID: selectedChatID });
-
-    // Listen for chat history update
-    const handleChatHistory = ({ history }) => {
-      setMessages(history);
-    };
-
-    socket.on('chatHistory', handleChatHistory);
-
-    // Clean up the listener when the component unmounts or when the selected chat changes
-    return () => {
-      socket.off('chatHistory', handleChatHistory);
-    };
-  }, [socket, selectedChatID]);
-
-  // Handle selecting a chat from the sidebar
-  const handleChatSelect = (chatID) => {
-    setSelectedChatID(chatID);
-    setMessages([]); // Clear previous messages before fetching new ones
-
-    const selectedChat = activeChats.find((chat) => chat.chatID === chatID);
-    if (selectedChat) {
-      setCurrentUsername(selectedChat.username);
-    }
-  };
+  }, [socket]);
 
   return (
-    <div>
-      {/* AppBar */}
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Admin Dashboard
-          </Typography>
-        </Toolbar>
-      </AppBar>
+    <Container>
+      <Typography variant="h4" gutterBottom>
+        Admin Dashboard
+      </Typography>
 
-      {/* Main content */}
-      <Container sx={{ display: 'flex', marginTop: 4 }}>
-        {/* Sidebar */}
-        <Box sx={{ width: '300px', borderRight: '1px solid #ddd', padding: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Active Chats
-          </Typography>
-          <List>
-            {activeChats.map((chat) => (
-              <ListItem button key={chat.chatID} onClick={() => handleChatSelect(chat.chatID)}>
-                <ListItemText primary={`Chat with ${chat.username}`} />
-              </ListItem>
-            ))}
-          </List>
+      {/* Active Chats Table */}
+      <Paper style={{ marginBottom: '20px', padding: '20px' }}>
+        <Typography variant="h6">Active Chats</Typography>
+        <TableContainer component={Paper} style={{ marginTop: '10px' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Agent Name</TableCell>
+                <TableCell>Chat ID</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {activeChats.length > 0 ? (
+                activeChats.map((chat) => (
+                  <TableRow key={chat.chatID}>
+                    <TableCell>{chat.username}</TableCell>
+                    <TableCell>{chat.chatID}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={2} align="center">
+                    No active chats
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
 
-          <Typography variant="h6" gutterBottom>
-            Inactive Chats
-          </Typography>
-          <List>
-            {inactiveChats.map((chat) => (
-              <ListItem button key={chat.chatID} onClick={() => handleChatSelect(chat.chatID)}>
-                <ListItemText primary={`Chat with ${chat.username} (Inactive)`} />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
-
-        {/* Chat Content */}
-        <Box sx={{ flexGrow: 1, padding: 2 }}>
-          {selectedChatID ? (
-            <ChatBox
-              chatID={selectedChatID}
-              username={currentUsername}
-              socket={socket}
-              setMessages={setMessages}
-              messages={messages}
-              isAdmin={true} // Admin flag to distinguish sender for Admin's view
-            />
-          ) : (
-            <Typography variant="body1">Select a user to start chatting.</Typography>
-          )}
-        </Box>
-      </Container>
-    </div>
+      {/* Inactive Chats Table */}
+      <Paper style={{ padding: '20px' }}>
+        <Typography variant="h6">Inactive Chats</Typography>
+        <TableContainer component={Paper} style={{ marginTop: '10px' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Agent Name</TableCell>
+                <TableCell>Chat ID</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {inactiveChats.length > 0 ? (
+                inactiveChats.map((chat) => (
+                  <TableRow key={chat.chatID}>
+                    <TableCell>{chat.username}</TableCell>
+                    <TableCell>{chat.chatID}</TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={2} align="center">
+                    No inactive chats
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
+    </Container>
   );
 };
 

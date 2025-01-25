@@ -8,7 +8,6 @@ const prisma = new PrismaClient();
 
 const app = express();
 const server = http.createServer(app);
-// const HOST = '0.0.0.0'; // Binds to all network interfaces
 
 // Enable CORS for frontend (React)
 app.use(cors());
@@ -20,19 +19,17 @@ app.use((req, res, next) => {
 // Initialize Socket.IO
 const io = socketIo(server, {
   cors: {
-    // origin: ['http://localhost:3000','http://192.168.1.3:3000'], // Replace with your React app's URL if different
-    origin: '*', // Replace with your React app's URL if different
+    origin: '*', // Replace with your React app's URL if necessary
     methods: ['GET', 'POST'],
-    // credentials: true,
   },
 });
 
-// Data stores for chats and admin
+// Data stores for chats and agents
 let activeChats = [];
 let inactiveChats = [];
 let chatHistory = {};
-let adminSocketID = null; // Admin's socket ID
-const adminUsername = 'Admin'; // Admin's username
+let agentSocketID = null; // Agent's socket ID
+const agentUsername = 'Agent'; // Agent's username
 
 // Helper function to generate unique Chat IDs
 const generateChatID = () => crypto.randomBytes(16).toString('hex');
@@ -40,24 +37,22 @@ const generateChatID = () => crypto.randomBytes(16).toString('hex');
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  // Admin registration
-  socket.on('registerAdmin', () => {
-    adminSocketID = socket.id;
-    console.log('Admin registered:', adminSocketID);
+  // Agent registration
+  socket.on('registerAgent', () => {
+    agentSocketID = socket.id;
+    console.log('Agent registered:', agentSocketID);
 
-    // Send active and inactive chats to admin
+    // Send active and inactive chats to the agent
     socket.emit('activeChats', activeChats);
     socket.emit('inactiveChats', inactiveChats);
   });
 
-  // Emit new chat to all admins when a new chat is created
+  // Emit new chat to all agents when a new chat is created
   socket.on('startChat', (chatData) => {
-    // Emit new chat to all connected admins
-    io.emit('newChat', chatData); // This will broadcast the new chat to all admins
+    io.emit('newChat', chatData); // Broadcast the new chat to all agents
   });
 
-
-  // Admin selects a chat
+  // Agent selects a chat
   socket.on('selectChat', ({ chatID }) => {
     if (chatHistory[chatID]) {
       socket.emit('chatHistory', { chatID, history: chatHistory[chatID] });
@@ -92,13 +87,13 @@ io.on('connection', (socket) => {
     socket.emit('chatID', { chatID });
     socket.emit('chatHistory', chatHistory[chatID]);
 
-    // Notify admin
-    if (adminSocketID) {
-      io.to(adminSocketID).emit('activeChats', activeChats);
+    // Notify agent
+    if (agentSocketID) {
+      io.to(agentSocketID).emit('activeChats', activeChats);
     }
   });
 
-  // Customer or Admin sends a message
+  // Customer or Agent sends a message
   socket.on('sendMessage', async ({ chatID, message, sender }) => {
     if (!chatID || !message || !sender) return;
 
@@ -123,11 +118,11 @@ io.on('connection', (socket) => {
     console.log(`${sender} sent a message: ${message}`);
 
     // Forward message
-    if (sender === adminUsername) {
-      io.to(chat.socketID).emit('receiveMessage', { sender: adminUsername, text: message, chatID });
+    if (sender === agentUsername) {
+      io.to(chat.socketID).emit('receiveMessage', { sender: agentUsername, text: message, chatID });
     } else {
-      if (adminSocketID) {
-        io.to(adminSocketID).emit('receiveMessage', { sender: chat.username, text: message, chatID });
+      if (agentSocketID) {
+        io.to(agentSocketID).emit('receiveMessage', { sender: chat.username, text: message, chatID });
       }
     }
   });
@@ -145,10 +140,10 @@ io.on('connection', (socket) => {
         data: { isActive: false },
       });
 
-      // Notify admin
-      if (adminSocketID) {
-        io.to(adminSocketID).emit('activeChats', activeChats);
-        io.to(adminSocketID).emit('inactiveChats', inactiveChats);
+      // Notify agent
+      if (agentSocketID) {
+        io.to(agentSocketID).emit('activeChats', activeChats);
+        io.to(agentSocketID).emit('inactiveChats', inactiveChats);
       }
 
       console.log(`Chat ${chatID} marked as inactive.`);
@@ -159,10 +154,10 @@ io.on('connection', (socket) => {
   socket.on('disconnect', async () => {
     console.log('A user disconnected:', socket.id);
 
-    // Handle admin disconnection
-    if (socket.id === adminSocketID) {
-      console.log('Admin disconnected.');
-      adminSocketID = null;
+    // Handle agent disconnection
+    if (socket.id === agentSocketID) {
+      console.log('Agent disconnected.');
+      agentSocketID = null;
       return;
     }
 
@@ -178,10 +173,10 @@ io.on('connection', (socket) => {
         data: { isActive: false },
       });
 
-      // Notify admin
-      if (adminSocketID) {
-        io.to(adminSocketID).emit('activeChats', activeChats);
-        io.to(adminSocketID).emit('inactiveChats', inactiveChats);
+      // Notify agent
+      if (agentSocketID) {
+        io.to(agentSocketID).emit('activeChats', activeChats);
+        io.to(agentSocketID).emit('inactiveChats', inactiveChats);
       }
 
       console.log(`Chat ${removedChat.chatID} moved to inactive.`);

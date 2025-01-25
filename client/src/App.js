@@ -1,18 +1,19 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import AdminDashboard from './pages/AdminDashboard';
-import ChatDetailPage from './pages/ChatDetailPage';
+import AgentDashboard from './pages/AgentDashboard';
 import CustomerChat from './pages/CustomerChat';
 
-function App() {
+const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/chat/:chatId" element={<ChatDetailPage />} />
         <Route path="/" element={<CustomerChat />} />
+        <Route path="/agent" element={<AgentDashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </Router>
   );
-}
+};
 
 export default App;

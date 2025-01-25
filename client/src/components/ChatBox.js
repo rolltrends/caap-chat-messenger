@@ -1,54 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { TextField, Button, Box, Typography, Paper } from '@mui/material';
 
-const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) => {
+const ChatBox = ({ chatID, username, socket, setMessages, messages, isAgent }) => {
   const [message, setMessage] = useState('');
 
   // Send a message
   const handleSendMessage = () => {
-    if (message.trim() === '') return;
+    if (!message.trim()) return;
 
-    const sender = isAdmin ? 'Admin' : 'You'; // Admin is always 'Admin', Customer sees 'You'
-    const receiver = isAdmin ? username || 'Customer' : 'Admin'; // Admin sees the customer's name, Customer sees 'Admin'
+    const sender = isAgent ? 'Agent' : 'You';
+    const receiver = isAgent ? username : 'Agent';
 
-    // Emit message with chatID, sender, message, and receiver
-    socket.emit('sendMessage', { chatID, message, sender, receiver });
-
-    // If admin, label their message as 'You'
-    if (isAdmin) {
-      setMessages((prev) => [...prev, { sender: 'You', text: message }]); // Admin sends message as 'You'
-    } else {
-      setMessages((prev) => [...prev, { sender: 'You', text: message }]); // Customer sends message as 'You'
-    }
-
-    setMessage(''); // Clear the input field after sending
+    socket.emit('sendMessage', { chatID, message, sender, receiver }); // Notify server
+    setMessages((prev) => [...prev, { sender: 'You', text: message }]); // Update local messages
+    setMessage(''); // Clear input
   };
 
+  // Listen for incoming messages
   useEffect(() => {
     const handleReceiveMessage = (msg) => {
-      if (msg.chatID === chatID) {
-        // Avoid adding duplicate messages based on message text and sender
-        const isDuplicate = messages.some((m) => m.text === msg.text && m.sender === msg.sender);
-        
-        if (!isDuplicate) {
-          // If Admin is receiving message, show Customer's name
-          if (msg.sender !== 'Admin' && isAdmin) {
-            // setMessages((prev) => [...prev, { sender: msg.sender || 'Customer', text: msg.text }]);
-            setMessages((prev) => [...prev, { sender: msg.sender || 'Customer', text: msg.text }]);
-          } else {
-            setMessages((prev) => [...prev, msg]); // Add message for Admin's view or Customer's view
-          }
-        }
+      if (msg.chatID === chatID && !messages.some((m) => m.text === msg.text && m.sender === msg.sender)) {
+        setMessages((prev) => [...prev, msg]);
       }
     };
 
-    // socket.on('receiveMessage', handleReceiveMessage); --> this makes duplicated message in admindashboard.js
-
-
-    return () => {
-      socket.off('receiveMessage', handleReceiveMessage);
-    };
-  }, [chatID, socket, messages, setMessages, isAdmin]);
+    socket.on('receiveMessage', handleReceiveMessage);
+    return () => socket.off('receiveMessage', handleReceiveMessage); // Cleanup
+  }, [chatID, socket, messages, setMessages]);
 
   return (
     <Box>
@@ -58,7 +36,7 @@ const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) =
           <Box key={index} sx={{ mb: 1 }}>
             <Typography
               variant="body2"
-              color={msg.sender === 'You' ? 'primary' : msg.sender === 'Admin' ? 'secondary' : 'purple'}
+              color={msg.sender === 'You' ? 'primary' : msg.sender === 'Agent' ? 'secondary' : 'textPrimary'}
             >
               <strong>{msg.sender}: </strong>
               {msg.text}
