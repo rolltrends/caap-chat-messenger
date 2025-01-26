@@ -1,3 +1,5 @@
+require('dotenv').config(); // Load environment variables from .env file
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -8,10 +10,11 @@ const prisma = new PrismaClient();
 
 const app = express();
 const server = http.createServer(app);
-// const HOST = '0.0.0.0'; // Binds to all network interfaces
 
 // Enable CORS for frontend (React)
 app.use(cors());
+
+// Middleware to log incoming HTTP requests
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} request from ${req.headers.origin} to ${req.url}`);
   next();
@@ -20,19 +23,22 @@ app.use((req, res, next) => {
 // Initialize Socket.IO
 const io = socketIo(server, {
   cors: {
-    // origin: ['http://localhost:3000','http://192.168.1.3:3000'], // Replace with your React app's URL if different
-    origin: '*', // Replace with your React app's URL if different
+    origin: '*', // Adjust this based on your actual frontend URL
     methods: ['GET', 'POST'],
-    // credentials: true,
   },
 });
 
-// Data stores for chats and admin
+// Data stores for active and inactive chats, and chat history
 let activeChats = [];
 let inactiveChats = [];
 let chatHistory = {};
 let adminSocketID = null; // Admin's socket ID
-const adminUsername = 'Admin'; // Admin's username
+
+// Get admin credentials from environment variables
+const ADMIN_CREDENTIALS = {
+  username: process.env.ADMIN_USERNAME,
+  password: process.env.ADMIN_PASSWORD,
+};
 
 // Helper function to generate unique Chat IDs
 const generateChatID = () => crypto.randomBytes(16).toString('hex');
@@ -48,22 +54,6 @@ io.on('connection', (socket) => {
     // Send active and inactive chats to admin
     socket.emit('activeChats', activeChats);
     socket.emit('inactiveChats', inactiveChats);
-  });
-
-  // Emit new chat to all admins when a new chat is created
-  socket.on('startChat', (chatData) => {
-    // Emit new chat to all connected admins
-    io.emit('newChat', chatData); // This will broadcast the new chat to all admins
-  });
-
-
-  // Admin selects a chat
-  socket.on('selectChat', ({ chatID }) => {
-    if (chatHistory[chatID]) {
-      socket.emit('chatHistory', { chatID, history: chatHistory[chatID] });
-    } else {
-      socket.emit('error', { message: 'Chat history not found.' });
-    }
   });
 
   // Customer creates a chat
@@ -86,13 +76,13 @@ io.on('connection', (socket) => {
     });
 
     activeChats.push({ chatID: newChat.chatID, username: newChat.username, socketID: newChat.socketID });
-    chatHistory[chatID] = [];
+    chatHistory[chatID] = []; // Initialize chat history
 
     console.log(`New chat created: ${username} (${chatID})`);
     socket.emit('chatID', { chatID });
     socket.emit('chatHistory', chatHistory[chatID]);
 
-    // Notify admin
+    // Notify admin of the new chat
     if (adminSocketID) {
       io.to(adminSocketID).emit('activeChats', activeChats);
     }
@@ -100,7 +90,10 @@ io.on('connection', (socket) => {
 
   // Customer or Admin sends a message
   socket.on('sendMessage', async ({ chatID, message, sender }) => {
-    if (!chatID || !message || !sender) return;
+    if (!chatID || !message || !sender) {
+      socket.emit('error', { message: 'Invalid message data.' });
+      return;
+    }
 
     const chat = activeChats.find((c) => c.chatID === chatID);
     if (!chat) {
@@ -120,19 +113,38 @@ io.on('connection', (socket) => {
     // Save message to chat history
     chatHistory[chatID].push({ sender, text: message });
 
-    console.log(`${sender} sent a message: ${message}`);
+    console.log(`[ChatID ${chatID}] ${sender} sent: ${message}`);
 
-    // Forward message
-    if (sender === adminUsername) {
-      io.to(chat.socketID).emit('receiveMessage', { sender: adminUsername, text: message, chatID });
+    // Forward the message to the appropriate receiver
+    if (sender === ADMIN_CREDENTIALS.username) {
+      // Admin sends a message to the customer
+      io.to(chat.socketID).emit('receiveMessage', {
+        sender: 'Admin',  // Ensure the sender is tagged as "Admin"
+        text: message,
+        chatID,
+      });
     } else {
+      // Customer sends a message to the admin
       if (adminSocketID) {
-        io.to(adminSocketID).emit('receiveMessage', { sender: chat.username, text: message, chatID });
+        io.to(adminSocketID).emit('receiveMessage', {
+          sender: chat.username, // Correctly tag the message with the customer's username
+          text: message,
+          chatID,
+        });
       }
     }
   });
 
-  // Mark chat as inactive
+  // Emit chat history when chat is selected
+  socket.on('selectChat', ({ chatID }) => {
+    if (chatHistory[chatID]) {
+      socket.emit('chatHistory', { chatID, history: chatHistory[chatID] });
+    } else {
+      socket.emit('error', { message: 'Chat history not found.' });
+    }
+  });
+
+  // Mark chat as inactive when ended
   socket.on('endChat', async ({ chatID }) => {
     const index = activeChats.findIndex((chat) => chat.chatID === chatID);
     if (index !== -1) {
@@ -145,7 +157,7 @@ io.on('connection', (socket) => {
         data: { isActive: false },
       });
 
-      // Notify admin
+      // Notify admin of updated chat lists
       if (adminSocketID) {
         io.to(adminSocketID).emit('activeChats', activeChats);
         io.to(adminSocketID).emit('inactiveChats', inactiveChats);
@@ -155,7 +167,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle actual disconnection
+  // Handle user disconnection
   socket.on('disconnect', async () => {
     console.log('A user disconnected:', socket.id);
 
@@ -178,7 +190,7 @@ io.on('connection', (socket) => {
         data: { isActive: false },
       });
 
-      // Notify admin
+      // Notify admin of updated chat lists
       if (adminSocketID) {
         io.to(adminSocketID).emit('activeChats', activeChats);
         io.to(adminSocketID).emit('inactiveChats', inactiveChats);
@@ -189,5 +201,6 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 4000;
+// Define the server port
+const PORT = process.env.PORT || 4000; // Use environment variable for port or default to 4000
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

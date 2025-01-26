@@ -11,6 +11,9 @@ const CustomerChat = () => {
 
   useEffect(() => {
     const newSocket = io('http://localhost:4000');
+    // console.log(process.env.REACT_APP_API_URL);
+    // const newSocket = io(process.env.REACT_APP_API_URL);
+    
     setSocket(newSocket);
 
     return () => newSocket.close(); // Cleanup on unmount

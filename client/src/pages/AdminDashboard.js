@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
-import { AppBar, Container, Toolbar, Typography, Box, List, ListItem, ListItemText } from '@mui/material';
+import { AppBar, Container, Toolbar, Typography, Box, List, ListItem, ListItemText, Button } from '@mui/material';
 import ChatBox from '../components/ChatBox';
+import AdminLogin from '../components/AdminLogin';
 
 const AdminDashboard = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeChats, setActiveChats] = useState([]);
   const [inactiveChats, setInactiveChats] = useState([]);
   const [selectedChatID, setSelectedChatID] = useState(null);
@@ -11,113 +13,114 @@ const AdminDashboard = () => {
   const [messages, setMessages] = useState([]);
   const [currentUsername, setCurrentUsername] = useState('');
 
-  // Initialize Socket.IO
   useEffect(() => {
-    const newSocket = io('http://192.168.1.3:4000');
+    if (!isAuthenticated) return;
+
+    const newSocket = io(process.env.REACT_APP_API_URL);
     setSocket(newSocket);
 
-    // Register as admin
     newSocket.emit('registerAdmin');
+    newSocket.on('activeChats', setActiveChats);
+    newSocket.on('inactiveChats', setInactiveChats);
 
-    // Listen for active and inactive chats
-    newSocket.on('activeChats', (chats) => setActiveChats(chats));
-    newSocket.on('inactiveChats', (chats) => setInactiveChats(chats));
-
-    // Listen for new incoming chats from customers
-    newSocket.on('newChat', (chatData) => {
-      setActiveChats((prevChats) => [...prevChats, chatData]);
+    // Listen for incoming messages (from customer or admin)
+    newSocket.on('receiveMessage', ({ sender, text, chatID }) => {
+      if (selectedChatID === chatID) {
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          { sender, text },
+        ]);
+      }
     });
 
-    return () => {
-      newSocket.close();
-      newSocket.off('activeChats');
-      newSocket.off('inactiveChats');
-      newSocket.off('newChat');  // Clean up the newChat listener
-    };
-  }, []);
+    return () => newSocket.close();
+  }, [isAuthenticated, selectedChatID]);
 
-  // Fetch chat history when a chat is selected
   useEffect(() => {
     if (!socket || !selectedChatID) return;
 
-    // Request chat history from the server
     socket.emit('selectChat', { chatID: selectedChatID });
+    socket.on('chatHistory', ({ history }) => setMessages(history));
 
-    // Listen for chat history update
-    const handleChatHistory = ({ history }) => {
-      setMessages(history);
-    };
-
-    socket.on('chatHistory', handleChatHistory);
-
-    // Clean up the listener when the component unmounts or when the selected chat changes
-    return () => {
-      socket.off('chatHistory', handleChatHistory);
-    };
+    return () => socket.off('chatHistory');
   }, [socket, selectedChatID]);
 
-  // Handle selecting a chat from the sidebar
   const handleChatSelect = (chatID) => {
     setSelectedChatID(chatID);
-    setMessages([]); // Clear previous messages before fetching new ones
-
+    setMessages([]);
     const selectedChat = activeChats.find((chat) => chat.chatID === chatID);
-    if (selectedChat) {
-      setCurrentUsername(selectedChat.username);
-    }
+    setCurrentUsername(selectedChat?.username || 'Unknown');
   };
+
+  const handleSendMessage = (message) => {
+    if (!message || !selectedChatID || !socket) return;
+
+    const sender = 'Admin'; // Admin sends message
+    socket.emit('sendMessage', {
+      chatID: selectedChatID,
+      message,
+      sender,
+    });
+
+    // Add the message to the local messages state immediately for real-time UI update
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { sender: 'Admin', text: message },
+    ]);
+  };
+
+  if (!isAuthenticated) {
+    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div>
-      {/* AppBar */}
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Admin Dashboard
           </Typography>
+          <Button color="inherit" onClick={() => setIsAuthenticated(false)}>
+            Logout
+          </Button>
         </Toolbar>
       </AppBar>
 
-      {/* Main content */}
-      <Container sx={{ display: 'flex', marginTop: 4 }}>
-        {/* Sidebar */}
-        <Box sx={{ width: '300px', borderRight: '1px solid #ddd', padding: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            Active Chats
-          </Typography>
-          <List>
-            {activeChats.map((chat) => (
-              <ListItem button key={chat.chatID} onClick={() => handleChatSelect(chat.chatID)}>
-                <ListItemText primary={`Chat with ${chat.username}`} />
-              </ListItem>
-            ))}
-          </List>
+      <Container sx={{ mt: 4 }}>
+        <Box display="flex" justifyContent="space-between">
+          <Box sx={{ width: '300px' }}>
+            <Typography variant="h6">Active Chats</Typography>
+            <List>
+              {activeChats.map((chat) => (
+                <ListItem button key={chat.chatID} onClick={() => handleChatSelect(chat.chatID)}>
+                  <ListItemText primary={chat.username} />
+                </ListItem>
+              ))}
+            </List>
 
-          <Typography variant="h6" gutterBottom>
-            Inactive Chats
-          </Typography>
-          <List>
-            {inactiveChats.map((chat) => (
-              <ListItem button key={chat.chatID} onClick={() => handleChatSelect(chat.chatID)}>
-                <ListItemText primary={`Chat with ${chat.username} (Inactive)`} />
-              </ListItem>
-            ))}
-          </List>
-        </Box>
+            <Typography variant="h6" sx={{ mt: 4 }}>
+              Inactive Chats
+            </Typography>
+            <List>
+              {inactiveChats.map((chat) => (
+                <ListItem key={chat.chatID}>
+                  <ListItemText primary={chat.username} />
+                </ListItem>
+              ))}
+            </List>
+          </Box>
 
-        {/* Chat Content */}
-        <Box sx={{ flexGrow: 1, padding: 2 }}>
-          {selectedChatID ? (
-            <ChatBox
-              chatID={selectedChatID}
-              username={currentUsername}
-              socket={socket}
-              setMessages={setMessages}
-              messages={messages}
-              isAdmin={true} // Admin flag to distinguish sender for Admin's view
-            />
-          ) : (
-            <Typography variant="body1">Select a user to start chatting.</Typography>
+          {selectedChatID && (
+            <Box sx={{ flex: 1, ml: 4 }}>
+              <ChatBox
+                chatID={selectedChatID}
+                username={currentUsername}
+                socket={socket}
+                setMessages={setMessages}
+                messages={messages}
+                isAdmin={true}
+              />
+            </Box>
           )}
         </Box>
       </Container>

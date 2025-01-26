@@ -1,3 +1,5 @@
+require('dotenv').config();  // Load environment variables from .env file
+
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -8,26 +10,39 @@ const prisma = new PrismaClient();
 
 const app = express();
 const server = http.createServer(app);
-const HOST = '0.0.0.0'; // Binds to all network interfaces
 
 // Enable CORS for frontend (React)
 app.use(cors());
 
+// Middleware to log incoming HTTP requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} request from ${req.headers.origin} to ${req.url}`);
+  console.log('Request Headers:', req.headers);
+  if (req.method === 'POST' || req.method === 'PUT') {
+    console.log('Request Body:', req.body);
+  }
+  next();
+});
+
 // Initialize Socket.IO
 const io = socketIo(server, {
   cors: {
-    origin: ['http://localhost:3000','http://192.168.1.6:3000'], // Replace with your React app's URL if different
+    origin: '*', // Adjust this based on your actual frontend URL
     methods: ['GET', 'POST'],
-    // credentials: true,
   },
 });
 
-// Data stores for chats and admin
+// Data stores for active and inactive chats, and chat history
 let activeChats = [];
 let inactiveChats = [];
 let chatHistory = {};
 let adminSocketID = null; // Admin's socket ID
-const adminUsername = 'Admin'; // Admin's username
+
+// Get admin credentials from environment variables
+const ADMIN_CREDENTIALS = {
+  username: process.env.ADMIN_USERNAME,
+  password: process.env.ADMIN_PASSWORD,
+};
 
 // Helper function to generate unique Chat IDs
 const generateChatID = () => crypto.randomBytes(16).toString('hex');
@@ -47,12 +62,10 @@ io.on('connection', (socket) => {
 
   // Emit new chat to all admins when a new chat is created
   socket.on('startChat', (chatData) => {
-    // Emit new chat to all connected admins
-    io.emit('newChat', chatData); // This will broadcast the new chat to all admins
+    io.emit('newChat', chatData); // Broadcast the new chat to all admins
   });
 
-
-  // Admin selects a chat
+  // Admin selects a chat to view the history
   socket.on('selectChat', ({ chatID }) => {
     if (chatHistory[chatID]) {
       socket.emit('chatHistory', { chatID, history: chatHistory[chatID] });
@@ -81,13 +94,13 @@ io.on('connection', (socket) => {
     });
 
     activeChats.push({ chatID: newChat.chatID, username: newChat.username, socketID: newChat.socketID });
-    chatHistory[chatID] = [];
+    chatHistory[chatID] = []; // Initialize chat history
 
     console.log(`New chat created: ${username} (${chatID})`);
     socket.emit('chatID', { chatID });
     socket.emit('chatHistory', chatHistory[chatID]);
 
-    // Notify admin
+    // Notify admin of the new chat
     if (adminSocketID) {
       io.to(adminSocketID).emit('activeChats', activeChats);
     }
@@ -117,9 +130,9 @@ io.on('connection', (socket) => {
 
     console.log(`${sender} sent a message: ${message}`);
 
-    // Forward message
-    if (sender === adminUsername) {
-      io.to(chat.socketID).emit('receiveMessage', { sender: adminUsername, text: message, chatID });
+    // Forward message to customer or admin based on the sender
+    if (sender === ADMIN_CREDENTIALS.username) {
+      io.to(chat.socketID).emit('receiveMessage', { sender: ADMIN_CREDENTIALS.username, text: message, chatID });
     } else {
       if (adminSocketID) {
         io.to(adminSocketID).emit('receiveMessage', { sender: chat.username, text: message, chatID });
@@ -127,7 +140,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Mark chat as inactive
+  // Mark chat as inactive when ended
   socket.on('endChat', async ({ chatID }) => {
     const index = activeChats.findIndex((chat) => chat.chatID === chatID);
     if (index !== -1) {
@@ -140,7 +153,7 @@ io.on('connection', (socket) => {
         data: { isActive: false },
       });
 
-      // Notify admin
+      // Notify admin of updated chat lists
       if (adminSocketID) {
         io.to(adminSocketID).emit('activeChats', activeChats);
         io.to(adminSocketID).emit('inactiveChats', inactiveChats);
@@ -150,7 +163,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle actual disconnection
+  // Handle user disconnection
   socket.on('disconnect', async () => {
     console.log('A user disconnected:', socket.id);
 
@@ -173,7 +186,7 @@ io.on('connection', (socket) => {
         data: { isActive: false },
       });
 
-      // Notify admin
+      // Notify admin of updated chat lists
       if (adminSocketID) {
         io.to(adminSocketID).emit('activeChats', activeChats);
         io.to(adminSocketID).emit('inactiveChats', inactiveChats);
@@ -184,5 +197,6 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 4000;
+// Define the server port
+const PORT = process.env.PORT || 4000;  // Use environment variable for port or default to 4000
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

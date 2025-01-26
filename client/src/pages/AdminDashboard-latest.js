@@ -1,29 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
-import { AppBar, Container, Toolbar, Typography, Box, List, ListItem, ListItemText } from '@mui/material';
-import ChatBox from '../components/ChatBox';
+import {
+  AppBar,
+  Container,
+  Toolbar,
+  Typography,
+  Box,
+  List,
+  ListItem,
+  ListItemText,
+  Button,
+} from '@mui/material';
+import ChatBox from '../components/ChatBox-latest';
+import AdminLogin from '../components/AdminLogin'; // Import the login component
 
 const AdminDashboard = () => {
-  const [activeChats, setActiveChats] = useState([]);
-  const [inactiveChats, setInactiveChats] = useState([]);
-  const [selectedChatID, setSelectedChatID] = useState(null);
-  const [socket, setSocket] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [currentUsername, setCurrentUsername] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Authentication state
+  const [activeChats, setActiveChats] = useState([]); // Active chats list
+  const [inactiveChats, setInactiveChats] = useState([]); // Inactive chats list
+  const [selectedChatID, setSelectedChatID] = useState(null); // Selected chat ID
+  const [socket, setSocket] = useState(null); // Socket connection
+  const [messages, setMessages] = useState([]); // Message history
+  const [currentUsername, setCurrentUsername] = useState(''); // Current customer's username
 
-  // Initialize Socket.IO
   useEffect(() => {
-    const newSocket = io(process.env.REACT_APP_API_URL);
+    if (!isAuthenticated) return;
+
+    // Establish socket connection
+    const newSocket = io('http://localhost:4000');
     setSocket(newSocket);
 
-    // Register as admin
     newSocket.emit('registerAdmin');
-
-    // Listen for active and inactive chats
     newSocket.on('activeChats', (chats) => setActiveChats(chats));
     newSocket.on('inactiveChats', (chats) => setInactiveChats(chats));
-
-    // Listen for new incoming chats from customers
     newSocket.on('newChat', (chatData) => {
       setActiveChats((prevChats) => [...prevChats, chatData]);
     });
@@ -32,55 +41,53 @@ const AdminDashboard = () => {
       newSocket.close();
       newSocket.off('activeChats');
       newSocket.off('inactiveChats');
-      newSocket.off('newChat');  // Clean up the newChat listener
+      newSocket.off('newChat');
     };
-  }, []);
+  }, [isAuthenticated]);
 
-  // Fetch chat history when a chat is selected
   useEffect(() => {
     if (!socket || !selectedChatID) return;
 
-    // Request chat history from the server
     socket.emit('selectChat', { chatID: selectedChatID });
 
-    // Listen for chat history update
     const handleChatHistory = ({ history }) => {
       setMessages(history);
     };
 
     socket.on('chatHistory', handleChatHistory);
 
-    // Clean up the listener when the component unmounts or when the selected chat changes
     return () => {
       socket.off('chatHistory', handleChatHistory);
     };
   }, [socket, selectedChatID]);
 
-  // Handle selecting a chat from the sidebar
   const handleChatSelect = (chatID) => {
     setSelectedChatID(chatID);
-    setMessages([]); // Clear previous messages before fetching new ones
-
+    setMessages([]);
     const selectedChat = activeChats.find((chat) => chat.chatID === chatID);
     if (selectedChat) {
       setCurrentUsername(selectedChat.username);
     }
   };
 
+  if (!isAuthenticated) {
+    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div>
-      {/* AppBar */}
       <AppBar position="static">
         <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Admin Dashboard
           </Typography>
+          <Button color="inherit" onClick={() => setIsAuthenticated(false)}>
+            Logout
+          </Button>
         </Toolbar>
       </AppBar>
 
-      {/* Main content */}
       <Container sx={{ display: 'flex', marginTop: 4 }}>
-        {/* Sidebar */}
         <Box sx={{ width: '300px', borderRight: '1px solid #ddd', padding: 2 }}>
           <Typography variant="h6" gutterBottom>
             Active Chats
@@ -105,7 +112,6 @@ const AdminDashboard = () => {
           </List>
         </Box>
 
-        {/* Chat Content */}
         <Box sx={{ flexGrow: 1, padding: 2 }}>
           {selectedChatID ? (
             <ChatBox
@@ -114,7 +120,7 @@ const AdminDashboard = () => {
               socket={socket}
               setMessages={setMessages}
               messages={messages}
-              isAdmin={true} // Admin flag to distinguish sender for Admin's view
+              isAdmin={true} // Admin view
             />
           ) : (
             <Typography variant="body1">Select a user to start chatting.</Typography>

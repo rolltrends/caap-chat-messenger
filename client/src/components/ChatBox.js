@@ -4,78 +4,54 @@ import { TextField, Button, Box, Typography, Paper } from '@mui/material';
 const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) => {
   const [message, setMessage] = useState('');
 
-  // Send a message
   const handleSendMessage = () => {
     if (message.trim() === '') return;
 
-    const sender = isAdmin ? 'Admin' : 'You'; // Admin is always 'Admin', Customer sees 'You'
-    const receiver = isAdmin ? username || 'Customer' : 'Admin'; // Admin sees the customer's name, Customer sees 'Admin'
+    // Determine sender and receiver based on user type
+    const sender = isAdmin ? 'Admin' : username;
+    const receiver = isAdmin ? username : 'Admin';
 
-    // Emit message with chatID, sender, message, and receiver
+    // Emit the message with proper sender/receiver
     socket.emit('sendMessage', { chatID, message, sender, receiver });
-
-    // If admin, label their message as 'You'
-    if (isAdmin) {
-      setMessages((prev) => [...prev, { sender: 'You', text: message }]); // Admin sends message as 'You'
-    } else {
-      setMessages((prev) => [...prev, { sender: 'You', text: message }]); // Customer sends message as 'You'
-    }
-
-    setMessage(''); // Clear the input field after sending
+    setMessages((prev) => [...prev, { sender, text: message }]);
+    setMessage('');
   };
 
   useEffect(() => {
     const handleReceiveMessage = (msg) => {
       if (msg.chatID === chatID) {
-        // Avoid adding duplicate messages based on message text and sender
-        const isDuplicate = messages.some((m) => m.text === msg.text && m.sender === msg.sender);
-        
-        if (!isDuplicate) {
-          // If Admin is receiving message, show Customer's name
-          if (msg.sender !== 'Admin' && isAdmin) {
-            // setMessages((prev) => [...prev, { sender: msg.sender || 'Customer', text: msg.text }]);
-            setMessages((prev) => [...prev, { sender: msg.sender || 'Customer', text: msg.text }]);
-          } else {
-            setMessages((prev) => [...prev, msg]); // Add message for Admin's view or Customer's view
-          }
-        }
+        setMessages((prev) => [...prev, msg]);
       }
     };
 
-    // socket.on('receiveMessage', handleReceiveMessage); --> this makes duplicated message in admindashboard.js
-
-
-    return () => {
-      socket.off('receiveMessage', handleReceiveMessage);
-    };
-  }, [chatID, socket, messages, setMessages, isAdmin]);
+    socket.on('receiveMessage', handleReceiveMessage);
+    return () => socket.off('receiveMessage', handleReceiveMessage);
+  }, [chatID, socket, setMessages]);
 
   return (
     <Box>
       <Paper elevation={3} sx={{ padding: 2, height: '400px', overflowY: 'scroll' }}>
         <Typography variant="h6">Chat with {username || 'Unknown'}</Typography>
         {messages.map((msg, index) => (
-          <Box key={index} sx={{ mb: 1 }}>
-            <Typography
-              variant="body2"
-              color={msg.sender === 'You' ? 'primary' : msg.sender === 'Admin' ? 'secondary' : 'purple'}
-            >
-              <strong>{msg.sender}: </strong>
-              {msg.text}
-            </Typography>
-          </Box>
+          <p key={index} style={{
+            color: msg.sender === "Admin" ? "purple" : "black", // Different colors for Admin and User messages
+          }}>
+            {msg.sender === "You" ? "You" : msg.sender}: {msg.text}
+          </p>
         ))}
       </Paper>
-      <TextField
-        label="Type a message"
-        variant="outlined"
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        fullWidth
-      />
-      <Button onClick={handleSendMessage} variant="contained" color="primary">
-        Send
-      </Button>
+      <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+        <TextField
+          label="Type a message"
+          variant="outlined"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          fullWidth
+        />
+        <Button onClick={handleSendMessage} variant="contained" color="primary">
+          Send
+        </Button>
+      </Box>
     </Box>
   );
 };

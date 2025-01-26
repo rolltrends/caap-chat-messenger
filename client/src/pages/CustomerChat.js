@@ -10,11 +10,9 @@ const CustomerChat = () => {
   const [messages, setMessages] = useState([]);
 
   useEffect(() => {
-    const newSocket = io('http://192.168.1.3:4000');
-    // const newSocket = io(process.env.REACT_APP_API_URL);
+    const newSocket = io(process.env.REACT_APP_API_URL);
     setSocket(newSocket);
-
-    return () => newSocket.close(); // Cleanup on unmount
+    return () => newSocket.close();
   }, []);
 
   const handleStartChat = () => {
@@ -22,39 +20,28 @@ const CustomerChat = () => {
 
     socket.emit('createChat', { username });
     socket.on('chatID', ({ chatID }) => setChatID(chatID));
-    socket.on('chatHistory', (history) => setMessages(history));
+    socket.on('chatHistory', setMessages);
   };
 
-  // Send message from customer to admin
   const handleSendMessage = () => {
     if (!message.trim()) return;
 
-    // Send message with the sender as "You"
     socket.emit('sendMessage', { chatID, message, sender: 'You', receiver: 'Admin' });
-
-    // Update local state to reflect the new message
     setMessages((prev) => [...prev, { sender: 'You', text: message }]);
-
-    setMessage(''); // Clear message input after sending
+    setMessage('');
   };
 
-  // Receive message (either from admin or another source)
   useEffect(() => {
     if (!socket || !chatID) return;
 
-    socket.on('receiveMessage', (msg) => {
+    const handleReceiveMessage = (msg) => {
       if (msg.chatID === chatID) {
-        setMessages((prevMessages) => {
-          // Avoid duplicating the same message
-          if (!prevMessages.some((m) => m.text === msg.text && m.sender === msg.sender)) {
-            return [...prevMessages, msg];
-          }
-          return prevMessages;
-        });
+        setMessages((prev) => [...prev, msg]);
       }
-    });
+    };
 
-    return () => socket.off('receiveMessage');
+    socket.on('receiveMessage', handleReceiveMessage);
+    return () => socket.off('receiveMessage', handleReceiveMessage);
   }, [chatID, socket]);
 
   return (
@@ -83,15 +70,7 @@ const CustomerChat = () => {
         </Box>
       ) : (
         <Box>
-          <Paper
-            elevation={3}
-            sx={{
-              padding: 2,
-              height: '400px',
-              overflowY: 'auto',
-              mb: 2,
-            }}
-          >
+          <Paper elevation={3} sx={{ padding: 2, height: '400px', overflowY: 'auto', mb: 2 }}>
             <Typography variant="h6" gutterBottom>
               Chat with Admin
             </Typography>
@@ -115,11 +94,7 @@ const CustomerChat = () => {
               onChange={(e) => setMessage(e.target.value)}
               fullWidth
             />
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSendMessage}
-            >
+            <Button variant="contained" color="primary" onClick={handleSendMessage}>
               Send
             </Button>
           </Box>
