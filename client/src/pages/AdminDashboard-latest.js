@@ -23,6 +23,7 @@ const AdminDashboard = () => {
   const [messages, setMessages] = useState([]); // Message history
   const [currentUsername, setCurrentUsername] = useState(''); // Current customer's username
 
+
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -112,7 +113,13 @@ const AdminDashboard = () => {
           </Typography>
           <List>
             {activeChats.map((chat) => (
-              <ListItem button key={chat.chatID}  onClick={() => handleChatSelect(chat.chatID)}>
+              <ListItem button key={chat.chatID}  onClick={() => handleChatSelect(chat.chatID)}
+              sx={{
+                backgroundColor: selectedChatID === chat.chatID ? '#1976d2' : 'transparent',
+                color: selectedChatID === chat.chatID ? '#fff' : '#000'
+              }}
+              
+              >
                 <ListItemText primary={`Chat with ${chat.username}`} />
               </ListItem>
             ))}

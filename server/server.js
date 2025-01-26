@@ -3,6 +3,10 @@ require('dotenv').config(); // Load environment variables from .env file
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
+const passport = require('passport')
+const expressSession = require('express-session')
+const { PrismaSessionStore} = require('@quixo3/prisma-session-store')
+const LocalStrategy = require('passport-local')
 const cors = require('cors');
 const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
@@ -19,6 +23,87 @@ app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} request from ${req.headers.origin} to ${req.url}`);
   next();
 });
+
+const BASE_PATH = process.env.BASE_PATH || '/admin'
+
+app.use(
+  expressSession({
+    name: process.env.SESSION_NAME || 'chat_session',
+    resave: true,
+    saveUninitialized: true,
+    secret: process.env.SESSION_SECRET,
+    store: new PrismaSessionStore(prisma, {
+      checkPeriod: 2 * 60 * 1000, //ms
+      dbRecordIdIsSessionId: true,
+      dbRecordIdFunction: undefined
+    }),
+    cookie: {
+      name: process.env.COOKIE_NAME || 'chat_cookie',
+      name: 'caap_chat',
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: false,//process.env.NODE_ENV === 'production',
+      maxAge: 1000 * 60 * 60 * 8 // 8 hours
+    }
+  })
+);
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser((profile, done) => {
+  done(null, profile);
+});
+
+passport.deserializeUser((profile, done) => {
+  done(null, profile);
+});
+
+
+app.post(`${BASE_PATH}/api/loginLocal`, function (req, res, next) {
+  try {
+    req.body = req.body.content
+    passport.authenticate('local', async (err, user, info) => {
+      if (!user) {
+        res.status(400).send(info.message);
+      } else {
+        req.login(user, async (error) => {
+ 
+        user.loginType = 'local'
+        return res.send({ user: user, message: 'Login successful' });
+        });
+      }
+    })(req, res, next);
+  } catch (err) {
+    // console.log(err);
+    return res.sendStatus(500);
+  }
+});
+
+app.get(`${BASE_PATH}/api/local`, (req, res) => {
+  res.status(200).send(req.user);
+});
+
+passport.use(
+  'local',
+  new LocalStrategy(async function (username, password, done) {
+    const user = await prisma.user.findFirst({
+      where: {
+        email: username,
+        deleted: null
+      }
+    });
+
+    if (!user) {
+      return done(null, false, { message: 'Invalid Credentials.' });
+    }
+
+    io.emit('login', user.username);
+
+    return done(null, result);
+  })
+);
+
 
 // Initialize Socket.IO
 const io = socketIo(server, {

@@ -5,6 +5,30 @@ const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) =
   const [currentUser, setCurrentUser] = useState(isAdmin ? 'You' : 'Agent')
   const [message, setMessage] = useState('');
 
+
+  const handleOnKeyDown = (event) => {
+    if(event.key === 'Enter'){
+      if (message.trim() === '') return;
+
+      // Define the sender and receiver based on whether it's Admin or Customer
+  
+      const sender = isAdmin ? 'Admin' : 'Agent'; // Admin sees their own messages as 'You', Customer sees their own messages as 'You'
+      const receiver = isAdmin ? username || 'Customer' : 'Admin'; // Admin sees Customer's name, Customer sees 'Admin'
+  
+      // Emit message with chatID, sender, message, and receiver
+      // console.log('sendMessage', { chatID, message, sender, receiver })
+      socket.emit('sendMessage', { chatID, message, sender, receiver });
+  
+      // If Admin, append message with 'You' for Admin, otherwise append message with 'You' for Customer
+      setMessages((prev) => [
+        ...prev,
+        { sender, text: message }
+      ]);
+  
+      setMessage(''); // Clear the input field after sending
+    }
+   
+  }
   // Send a message from either Admin or Customer
   const handleSendMessage = () => {
     if (message.trim() === '') return;
@@ -64,7 +88,7 @@ const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) =
           <Box key={index} sx={{ mb: 1 }}>
             <Typography
               variant="body2"
-              color={msg.sender === 'You' ? 'primary' : msg.sender === 'Admin' ? 'secondary' : 'purple'}
+              color={msg.sender === 'You' ? 'primary' : msg.sender.toLowerCase() === 'admin' ? 'primary' : 'purple'}
             >
               <strong>{msg.sender}: </strong>
               {msg.text}
@@ -76,6 +100,7 @@ const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) =
         label="Type a message"
         variant="outlined"
         value={message}
+        onKeyDown={handleOnKeyDown}
         onChange={(e) => setMessage(e.target.value)}
         fullWidth
       />
