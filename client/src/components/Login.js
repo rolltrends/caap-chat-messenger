@@ -1,25 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState , useContext} from 'react';
 import { Box, Button, TextField, Typography } from '@mui/material';
-
-const AdminLogin = ({ onLogin }) => {
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios'
+import { AuthContext } from '../components/authenContext';
+const AdminLogin = () => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const { setUser } = useContext(AuthContext);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Get the admin credentials from the environment variables
-    const adminUsername = process.env.REACT_APP_ADMIN_USERNAME;
-    const adminPassword = process.env.REACT_APP_ADMIN_PASSWORD;
 
     // Replace with real authentication logic
-    if (username === adminUsername && password === adminPassword) {
-      onLogin();
+    const login = await loginLocal({username: username, password: password})
+    if (login) {
+      // onLogin();
+      setUser(login.data.user)
+      navigate('/dashboard',{state: {isAuthenticated: true}})
     } else {
       setError('Invalid credentials. Please try again.');
     }
   };
+
+
+  async function loginLocal(credentials) {
+    // await getCSRFToken();
+
+    try {
+      const res = await axios({
+        method: 'POST',
+        url: `http://localhost:4000/api/loginLocal`,
+        withCredentials: true,
+        data: credentials
+      });
+
+      // console.log(res)
+
+      return res;
+    } catch (err) {
+      console.log(err)
+    }
+  }
 
   return (
     <Box

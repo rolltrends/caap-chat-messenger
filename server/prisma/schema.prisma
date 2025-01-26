@@ -32,3 +32,11 @@ model Message {
   chat      Chat     @relation(fields: [chatID], references: [chatID])
 }
 
+model Session {
+  id        String   @id
+  sid       String   @unique
+  data      String   @db.VarChar(max)
+  expiresAt DateTime @db.DateTime2
+
+  @@map("sessions")
+}

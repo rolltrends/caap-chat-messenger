@@ -11,12 +11,18 @@ const cors = require('cors');
 const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const axios = require('axios')
+const cookieParser = require('cookie-parser')
+const https = require('https');
 
 const app = express();
 const server = http.createServer(app);
 
 // Enable CORS for frontend (React)
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000', // Specify the frontend origin
+  credentials: true, // Allow credentials (cookies, HTTP authentication, etc.)
+}));
 
 // Middleware to log incoming HTTP requests
 app.use((req, res, next) => {
@@ -24,7 +30,8 @@ app.use((req, res, next) => {
   next();
 });
 
-const BASE_PATH = process.env.BASE_PATH || '/admin'
+const BASE_PATH = process.env.BASE_PATH || ''
+
 
 app.use(
   expressSession({
@@ -47,51 +54,77 @@ app.use(
     }
   })
 );
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser(process.env.COOKIE_KEY));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-passport.serializeUser((profile, done) => {
-  done(null, profile);
-});
 
-passport.deserializeUser((profile, done) => {
-  done(null, profile);
-});
-
-
-app.post(`${BASE_PATH}/api/loginLocal`, function (req, res, next) {
-  try {
-    req.body = req.body.content
-    passport.authenticate('local', async (err, user, info) => {
-      if (!user) {
-        res.status(400).send(info.message);
-      } else {
-        req.login(user, async (error) => {
- 
-        user.loginType = 'local'
-        return res.send({ user: user, message: 'Login successful' });
-        });
+app.post('/api/send_sms', async (req,res) => {
+  const {number,message}  = req.body;
+  // console.log(req)
+  try{
+    const sms = await axios.post(`https://messagingsuite.smart.com.ph/cgphttp/servlet/sendmsg?destination=${number}&text=${message}`,{
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false
+      })
+  },{
+      auth: {
+        username: process.env.suprano_user,
+        password: process.env.suprano_pass
       }
-    })(req, res, next);
-  } catch (err) {
-    // console.log(err);
-    return res.sendStatus(500);
+    })
+
+    return res.send({message: 'success'})
+  }catch(err){
+    console.log(err)
   }
+  return res.sendStatus(200)
+})
+
+
+app.post('/api/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).send('Failed to log out');
+    }
+    res.send({message:'successfully logged out', redirect:'/'}); // Redirect to login page after logout
+  });
+});
+
+app.post(`/api/loginLocal`, function (req, res, next) {
+  const { content } = req.body; // Destructure directly from req.body
+  console.log(content);
+
+  passport.authenticate('local', async (err, user, info) => {
+    if (err) {
+      return next(err);  // Handle authentication error
+    }
+    if (!user) {
+      return res.status(400).send(info.message); // Invalid credentials
+    }
+
+    req.login(user, (loginErr) => {
+      if (loginErr) {
+        return next(loginErr);  // Handle login error
+      }
+
+      user.loginType = 'local';
+      return res.send({ user, message: 'Login successful' });
+    });
+  })(req, res, next);
 });
 
 app.get(`${BASE_PATH}/api/local`, (req, res) => {
   res.status(200).send(req.user);
 });
 
-passport.use(
-  'local',
-  new LocalStrategy(async function (username, password, done) {
+passport.use('local', new LocalStrategy(async function (username, password, done) {
+  try {
     const user = await prisma.user.findFirst({
-      where: {
-        email: username,
-        deleted: null
-      }
+      where: { username }
     });
 
     if (!user) {
@@ -99,10 +132,26 @@ passport.use(
     }
 
     io.emit('login', user.username);
+    return done(null, user);  // Corrected to return 'user' instead of 'result'
+  } catch (err) {
+    return done(err);  // Handle database or other errors
+  }
+}));
 
-    return done(null, result);
-  })
-);
+passport.serializeUser((user, done) => {
+  done(null, user.id);  // Serialize only the necessary user data (e.g., user ID)
+});
+
+passport.deserializeUser(async (id, done) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id } });
+    done(null, user); // Deserialize to full user object
+  } catch (err) {
+    done(err); // Handle any errors
+  }
+});
+
+
 
 
 // Initialize Socket.IO
