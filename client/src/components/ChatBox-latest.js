@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TextField, Button, Box, Typography, Paper } from '@mui/material';
 
 const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) => {
+  const [currentUser, setCurrentUser] = useState(isAdmin ? 'You' : 'Agent')
   const [message, setMessage] = useState('');
 
   // Send a message from either Admin or Customer
@@ -9,10 +10,12 @@ const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) =
     if (message.trim() === '') return;
 
     // Define the sender and receiver based on whether it's Admin or Customer
-    const sender = isAdmin ? 'You' : 'You'; // Admin sees their own messages as 'You', Customer sees their own messages as 'You'
+
+    const sender = isAdmin ? 'Admin' : 'Agent'; // Admin sees their own messages as 'You', Customer sees their own messages as 'You'
     const receiver = isAdmin ? username || 'Customer' : 'Admin'; // Admin sees Customer's name, Customer sees 'Admin'
 
     // Emit message with chatID, sender, message, and receiver
+    // console.log('sendMessage', { chatID, message, sender, receiver })
     socket.emit('sendMessage', { chatID, message, sender, receiver });
 
     // If Admin, append message with 'You' for Admin, otherwise append message with 'You' for Customer
@@ -25,28 +28,33 @@ const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) =
   };
 
   useEffect(() => {
-    const handleReceiveMessage = (msg) => {
+
+    const handle = (msg) => {
+      console.log(msg)
       if (msg.chatID === chatID) {
+        setMessages(messages)
+        // console.log(msg)
         // Avoid adding duplicate messages based on message text and sender
         const isDuplicate = messages.some((m) => m.text === msg.text && m.sender === msg.sender);
+        console.log()
         
-        if (!isDuplicate) {
-          // If Admin is receiving message, show Customer's name, otherwise show the Admin's name for Customer
-          if (msg.sender !== 'Admin' && isAdmin) {
-            setMessages((prev) => [...prev, { sender: msg.sender || 'Customer', text: msg.text }]);
-          } else {
-            setMessages((prev) => [...prev, msg]); // Add message for Admin's view or Customer's view
-          }
-        }
+        // if (!isDuplicate) {
+        //   // If Admin is receiving message, show Customer's name, otherwise show the Admin's name for Customer
+        //   if (msg.sender !== 'Admin' && isAdmin) {
+        //     setMessages((prev) => [...prev, { sender: msg.sender || 'Customer', text: msg.text }]);
+        //   } else {
+            // setMessages((prev) => [...prev, msg]); // Add message for Admin's view or Customer's view
+        //   }
+        // }
       }
     };
 
-    // socket.on('receiveMessage', handleReceiveMessage);
+    socket.on('receiveMessage', handle);
 
-    return () => {
-      socket.off('receiveMessage', handleReceiveMessage);
-    };
-  }, [chatID, socket, messages, setMessages, isAdmin]);
+    // return () => {
+    //   socket.off('', handle);
+    // };
+  }, [messages]);
 
   return (
     <Box>

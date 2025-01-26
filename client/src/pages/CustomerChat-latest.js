@@ -27,15 +27,30 @@ const CustomerChat = () => {
     socket.on('chatHistory', (history) => setMessages(history));
   };
 
+
+  const handleOnKeyDown = (event) => {
+    if(event.key === 'Enter'){
+        if(!message.trim()) return;
+
+        socket.emit('sendMessage', {chatID, message, sender:username, receiver: 'Admin'});
+
+        setMessages((prev) => [...prev, {sender: username, text: message }]);
+        
+        setMessage('');
+    }
+   
+  }
+  
+
   // Send message from customer to admin
   const handleSendMessage = () => {
     if (!message.trim()) return;
 
     // Send message with the sender as "You"
-    socket.emit('sendMessage', { chatID, message, sender: 'You', receiver: 'Admin' });
+    socket.emit('sendMessage', { chatID, message, sender: username, receiver: 'Admin' });
 
     // Update local state to reflect the new message
-    setMessages((prev) => [...prev, { sender: 'You', text: message }]);
+    setMessages((prev) => [...prev, { sender: username, text: message }]);
 
     setMessage(''); // Clear message input after sending
   };
@@ -46,17 +61,19 @@ const CustomerChat = () => {
 
     socket.on('receiveMessage', (msg) => {
       if (msg.chatID === chatID) {
-        setMessages((prevMessages) => {
-          // Avoid duplicating the same message
-          if (!prevMessages.some((m) => m.text === msg.text && m.sender === msg.sender)) {
-            return [...prevMessages, msg];
-          }
-          return prevMessages;
-        });
+        setMessages((prev) => [...prev, msg])
+        // setMessages((prevMessages) => {
+        //   // Avoid duplicating the same message
+        //   // if (!prevMessages.some((m) => m.text === msg.text && m.sender === msg.sender)) {
+        //   //   return [...prevMessages, msg];
+        //   // }
+        //   // return prevMessages;
+        // });
+
       }
     });
 
-    return () => socket.off('receiveMessage');
+    // return () => socket.off('receiveMessage');
   }, [chatID, socket]);
 
   return (
@@ -101,7 +118,7 @@ const CustomerChat = () => {
               <Box key={index} sx={{ mb: 1 }}>
                 <Typography
                   variant="body2"
-                  color={msg.sender === 'You' ? 'primary' : 'secondary'}
+                  color={msg.sender === username ? 'primary' : 'secondary'}
                 >
                   <strong>{msg.sender}: </strong>
                   {msg.text}
@@ -114,12 +131,14 @@ const CustomerChat = () => {
               label="Type a message"
               variant="outlined"
               value={message}
+              onKeyDown={handleOnKeyDown}
               onChange={(e) => setMessage(e.target.value)}
               fullWidth
             />
             <Button
               variant="contained"
               color="primary"
+              
               onClick={handleSendMessage}
             >
               Send

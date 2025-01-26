@@ -45,12 +45,30 @@ const AdminDashboard = () => {
     };
   }, [isAuthenticated]);
 
+
+  useEffect(()=>{
+    if(!socket) return;
+   const refreshChat = (msg) =>{
+        console.log(msg.sender)
+        handleChatSelect(msg.chatID)
+        setSelectedChatID(msg.chatID)
+        setMessages((prev) => [...prev, msg])
+      }
+
+    socket.on('receiveMessage',refreshChat)
+  },[socket,messages,selectedChatID])
+
   useEffect(() => {
     if (!socket || !selectedChatID) return;
+
+
+    // console.log()
+    
 
     socket.emit('selectChat', { chatID: selectedChatID });
 
     const handleChatHistory = ({ history }) => {
+      console.log('test',history)
       setMessages(history);
     };
 
@@ -63,7 +81,7 @@ const AdminDashboard = () => {
 
   const handleChatSelect = (chatID) => {
     setSelectedChatID(chatID);
-    setMessages([]);
+    // setMessages([]);
     const selectedChat = activeChats.find((chat) => chat.chatID === chatID);
     if (selectedChat) {
       setCurrentUsername(selectedChat.username);
@@ -94,7 +112,7 @@ const AdminDashboard = () => {
           </Typography>
           <List>
             {activeChats.map((chat) => (
-              <ListItem button key={chat.chatID} onClick={() => handleChatSelect(chat.chatID)}>
+              <ListItem button key={chat.chatID}  onClick={() => handleChatSelect(chat.chatID)}>
                 <ListItemText primary={`Chat with ${chat.username}`} />
               </ListItem>
             ))}

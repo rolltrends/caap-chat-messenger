@@ -90,6 +90,7 @@ io.on('connection', (socket) => {
 
   // Customer or Admin sends a message
   socket.on('sendMessage', async ({ chatID, message, sender }) => {
+    
     if (!chatID || !message || !sender) {
       socket.emit('error', { message: 'Invalid message data.' });
       return;
@@ -100,7 +101,7 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: `ChatID ${chatID} not found` });
       return;
     }
-
+    //socket.emit('receiveMessage')
     // Save message to the database
     await prisma.message.create({
       data: {
@@ -116,8 +117,11 @@ io.on('connection', (socket) => {
     console.log(`[ChatID ${chatID}] ${sender} sent: ${message}`);
 
     // Forward the message to the appropriate receiver
-    if (sender === ADMIN_CREDENTIALS.username) {
-      // Admin sends a message to the customer
+    let s = sender.toLowerCase();
+    console.log(s)
+    if (s === ADMIN_CREDENTIALS.username) {
+      // Admin sen""ds a message to the customer
+      console.log("adminsent")
       io.to(chat.socketID).emit('receiveMessage', {
         sender: 'Admin',  // Ensure the sender is tagged as "Admin"
         text: message,
@@ -126,6 +130,7 @@ io.on('connection', (socket) => {
     } else {
       // Customer sends a message to the admin
       if (adminSocketID) {
+        console.log("customersent")
         io.to(adminSocketID).emit('receiveMessage', {
           sender: chat.username, // Correctly tag the message with the customer's username
           text: message,

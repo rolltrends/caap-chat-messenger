@@ -12,6 +12,8 @@ const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) =
     const receiver = isAdmin ? username : 'Admin';
 
     // Emit the message with proper sender/receiver
+
+    console.log('asdasd',{ chatID, message, sender, receiver })
     socket.emit('sendMessage', { chatID, message, sender, receiver });
     setMessages((prev) => [...prev, { sender, text: message }]);
     setMessage('');
