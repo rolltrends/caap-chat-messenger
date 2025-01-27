@@ -21,15 +21,7 @@ const Dashboard = () => {
   return (
     <div>
         <Container sx={{ mt: 4 }}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper sx={{ p: 2, textAlign: 'center' }}>Messages: 123</Paper>
-            </Grid>
-            <Grid item xs={12} sm={6} md={4}>
-              <Paper sx={{ p: 2, textAlign: 'center' }}>Customers: 13</Paper>
-            </Grid>
-     
-          </Grid>
+        <h2>Dashboard</h2>
         </Container>
     </div>
   );
