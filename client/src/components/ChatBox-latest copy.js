@@ -89,24 +89,20 @@ const ChatBox = ({ chatID, username, socket, setMessages, messages, isAdmin }) =
   return (
     <Box>
       <Paper elevation={3} sx={{ padding: 2, height: '400px', overflowY: 'scroll' }}>
-      <Typography variant="h6">Chat with {username || 'Unknown'}</Typography>
-      {messages.map((msg, index) => (
-        <Box key={index} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between' }}>
-          <Typography
-            variant="body2"
-            color={msg.sender === 'You' ? 'primary' : msg.sender.toLowerCase() === 'admin' ? 'primary' : 'purple'}
-            sx={{ flexGrow: 1 }}
-          >
-            <strong>{msg.sender}: </strong>
-            {msg.text}
-          </Typography>
-          <Typography variant="body2" color="textSecondary" sx={{ alignSelf: 'flex-end', ml: 1 }}>
-            {/* {new Date(msg.timestamp).toLocaleTimeString()} */}
-          </Typography>
-        </Box>
-      ))}
-      <div ref={messageEndRef} />
-    </Paper>
+        <Typography variant="h6">Chat with {username || 'Unknown'}</Typography>
+        {messages.map((msg, index) => (
+          <Box key={index} sx={{ mb: 1 }}>
+            <Typography
+              variant="body2"
+              color={msg.sender === 'You' ? 'primary' : msg.sender.toLowerCase() === 'admin' ? 'primary' : 'purple'}
+            >
+              <strong>{msg.sender}: </strong>
+              {msg.text}
+            </Typography>
+          </Box>
+        ))}
+        <div ref={messageEndRef} />
+      </Paper>
       <TextField
         label="Type a message"
         variant="outlined"

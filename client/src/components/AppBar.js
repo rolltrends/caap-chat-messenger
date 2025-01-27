@@ -129,12 +129,12 @@ const { setUser,user } = React.useContext(AuthContext);
             >
               {pages.map((page) => (
                 <MenuItem key={page} onClick={handlePage}>
-                  <Typography sx={{ textAlign: 'center' }}>{page} 1</Typography>
+                  <Typography sx={{ textAlign: 'center' }}>{page}</Typography>
                 </MenuItem>
               ))}
             </Menu>
           </Box>
-          <AdbIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
+          {/* <AdbIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} /> */}
           <Typography
             variant="h5"
             noWrap
@@ -151,7 +151,7 @@ const { setUser,user } = React.useContext(AuthContext);
               textDecoration: 'none',
             }}
           >
-            LOGO
+            CAAP Portal
           </Typography>
           <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
             {pages.map((page) => (

@@ -22,6 +22,7 @@ model Chat {
   socketID  String
   isActive  Boolean  @default(true)
   messages  Message[]
+  timestamp DateTime @default(now()) @db.DateTime2
 }
 
 model Message {
@@ -30,6 +31,15 @@ model Message {
   sender    String
   text      String
   chat      Chat     @relation(fields: [chatID], references: [chatID])
+  timestamp DateTime @default(now()) @db.DateTime2
+}
+
+model SMS {
+  id        Int      @id @default(autoincrement())
+  sender    String
+  message   String
+  isSent    Boolean  @default(true)
+  timestamp DateTime @default(now()) @db.DateTime2
 }
 
 model Session {

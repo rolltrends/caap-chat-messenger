@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { TextField, Button, Box, Typography, Paper } from '@mui/material';
 
@@ -9,11 +9,11 @@ const CustomerChat = () => {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
 
+  // Create a ref to the message container
+  const messageEndRef = useRef(null);
+
   useEffect(() => {
     const newSocket = io(process.env.REACT_APP_API_URL);
-    // console.log(process.env.REACT_APP_API_URL);
-    // const newSocket = io(process.env.REACT_APP_API_URL);
-    
     setSocket(newSocket);
 
     return () => newSocket.close(); // Cleanup on unmount
@@ -27,20 +27,16 @@ const CustomerChat = () => {
     socket.on('chatHistory', (history) => setMessages(history));
   };
 
-
   const handleOnKeyDown = (event) => {
-    if(event.key === 'Enter'){
-        if(!message.trim()) return;
+    if (event.key === 'Enter') {
+      if (!message.trim()) return;
 
-        socket.emit('sendMessage', {chatID, message, sender:username, receiver: 'Admin'});
+      socket.emit('sendMessage', { chatID, message, sender: username, receiver: 'Admin' });
 
-        setMessages((prev) => [...prev, {sender: username, text: message }]);
-        
-        setMessage('');
+      setMessages((prev) => [...prev, { sender: username, text: message }]);
+      setMessage('');
     }
-   
-  }
-  
+  };
 
   // Send message from customer to admin
   const handleSendMessage = () => {
@@ -61,20 +57,17 @@ const CustomerChat = () => {
 
     socket.on('receiveMessage', (msg) => {
       if (msg.chatID === chatID) {
-        setMessages((prev) => [...prev, msg])
-        // setMessages((prevMessages) => {
-        //   // Avoid duplicating the same message
-        //   // if (!prevMessages.some((m) => m.text === msg.text && m.sender === msg.sender)) {
-        //   //   return [...prevMessages, msg];
-        //   // }
-        //   // return prevMessages;
-        // });
-
+        setMessages((prev) => [...prev, msg]);
       }
     });
-
-    // return () => socket.off('receiveMessage');
   }, [chatID, socket]);
+
+  // Scroll to the bottom whenever messages change
+  useEffect(() => {
+    if (messageEndRef.current) {
+      messageEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   return (
     <Box sx={{ maxWidth: 500, mx: 'auto', mt: 4 }}>
@@ -125,6 +118,8 @@ const CustomerChat = () => {
                 </Typography>
               </Box>
             ))}
+            {/* Add a ref to scroll to the bottom */}
+            <div ref={messageEndRef} />
           </Paper>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <TextField
@@ -138,7 +133,6 @@ const CustomerChat = () => {
             <Button
               variant="contained"
               color="primary"
-              
               onClick={handleSendMessage}
             >
               Send
