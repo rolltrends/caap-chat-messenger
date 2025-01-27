@@ -33,7 +33,7 @@ const AdminLogin = () => {
     try {
       const res = await axios({
         method: 'POST',
-        url: `http://localhost:4000/api/loginLocal`,
+        url: `${process.env.REACT_APP_API_URL}/api/loginLocal`,
         withCredentials: true,
         data: credentials
       });

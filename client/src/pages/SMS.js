@@ -59,7 +59,7 @@ const SMS = ({ setIsAuthenticated,isAuthenticated }) => {
     try {
       // Send SMS requests concurrently for better performance
       const sendPromises = data.map((row) =>
-        axios.post('http://localhost:4000/api/send_sms', {
+        axios.post(`${process.env.REACT_APP_API_URL}/api/send_sms`, {
           number: row[1], 
           message: row[2]
         })

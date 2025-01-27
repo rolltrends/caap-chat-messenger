@@ -20,7 +20,7 @@ const server = http.createServer(app);
 
 // Enable CORS for frontend (React)
 app.use(cors({
-  origin: 'http://localhost:3000', // Specify the frontend origin
+  origin: process.env.APP_URL, // Specify the frontend origin
   credentials: true, // Allow credentials (cookies, HTTP authentication, etc.)
 }));
 

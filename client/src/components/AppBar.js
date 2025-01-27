@@ -59,7 +59,7 @@ const { setUser,user } = React.useContext(AuthContext);
     try {
       const res = await axios({
         method: 'POST',
-        url: `http://localhost:4000/api/logout`,
+        url: `${process.env.REACT_APP_API_URL}/api/logout`,
         withCredentials: true
       });
 

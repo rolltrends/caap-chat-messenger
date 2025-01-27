@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async () => {
     try {
-        const response = await axios.get('http://localhost:4000/api/local', {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/local`, {
         withCredentials: true, // Include cookies or session data
         });
 

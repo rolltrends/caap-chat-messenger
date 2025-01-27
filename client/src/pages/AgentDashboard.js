@@ -13,7 +13,7 @@ const AgentDashboard = () => {
 
   // Initialize Socket.IO connection and set up listeners
   useEffect(() => {
-    const newSocket = io('http://localhost:4000'); // Connect to the server
+    const newSocket = io(`${process.env.REACT_APP_API_URL}`); // Connect to the server
     setSocket(newSocket);
 
     // Register as agent and set up event listeners
