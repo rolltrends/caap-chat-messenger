@@ -3,8 +3,10 @@ import { Button, Input, Snackbar, Container, Box, CircularProgress, Table, Table
 import * as XLSX from 'xlsx';
 import axios from 'axios';
 import AdminLogin from '../components/Login';
+import { AuthContext } from '../components/authenContext';
 
-const SMS = ({ setIsAuthenticated, isAuthenticated }) => {
+const SMS = () => {
+  const { setUser,user } = React.useContext(AuthContext);
   const [file, setFile] = useState(null); // Handle single file
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -60,11 +62,20 @@ const SMS = ({ setIsAuthenticated, isAuthenticated }) => {
         axios.post(`${process.env.REACT_APP_API_URL}/api/send_sms`, {
           number: row[1],
           message: row[2],
+          sender: user.username
         })
       );
 
-      await Promise.all(sendPromises); // Wait for all requests to finish
+      const res = await Promise.all(sendPromises); // Wait for all requests to finish
 
+
+      // console.log() //status
+      // const test = res.map((row)=> ({
+      //   number: row.data.number,
+      //   status: row.data.status
+      // }))
+
+      // console.log(test)
       const updatedData = data.map((row) => ({
         ...row,
         status: 'Sent',

@@ -7,10 +7,12 @@
     "@emotion/styled": "^11.13.5",
     "@mui/icons-material": "^6.1.8",
     "@mui/material": "^6.1.8",
+    "@mui/x-date-pickers": "^7.24.1",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.7.9",
+    "date-fns": "^2.29.3",
     "dotenv": "^16.4.7",
     "https": "^1.0.0",
     "https-browserify": "^1.0.0",
@@ -23,7 +25,7 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "node_modules\\react-scripts\\scripts\\start.js",
+    "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
@@ -46,5 +48,5 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://172.13.201.31:4001"
+  "proxy": "http://localhost:4000"
 }

@@ -24,11 +24,12 @@ const AdminDashboard = () => {
   const [socket, setSocket] = useState(null); // Socket connection
   const [messages, setMessages] = useState([]); // Message history
   const [currentUsername, setCurrentUsername] = useState(''); // Current customer's username
+  const [unreadMessages, setUnreadMessages] = useState({});
 
 
   useEffect(() => {
     if (!user) return;
-
+    
     // Establish socket connection
     const newSocket = io(process.env.REACT_APP_API_URL);
     setSocket(newSocket);
@@ -48,18 +49,50 @@ const AdminDashboard = () => {
     };
   }, [user]);
 
+  /// old
+  // useEffect(()=>{
+  //   if(!socket) return;
+  //  const refreshChat = (msg) =>{
+  //       // console.log(msg.sender)
+  //       //for auto select
+  //       // handleChatSelect(msg.chatID)
+  //       // setSelectedChatID(msg.chatID)
+  //       setMessages((prev) => [...prev, msg])
+  //     }
 
-  useEffect(()=>{
-    if(!socket) return;
-   const refreshChat = (msg) =>{
-        console.log(msg.sender)
-        handleChatSelect(msg.chatID)
-        setSelectedChatID(msg.chatID)
-        setMessages((prev) => [...prev, msg])
-      }
+  //   socket.on('receiveMessage',refreshChat)
+  // },[socket,messages,selectedChatID])
 
-    socket.on('receiveMessage',refreshChat)
-  },[socket,messages,selectedChatID])
+  useEffect(() => {
+    if (!socket) return;
+  
+    const refreshChat = (msg) => {
+      setMessages((prev) => [...prev, msg]);
+  
+      // Play sound when a new message arrives
+      const sound = new Audio('/sounds/caap-notif.mp3'); // Path to the sound file
+      sound.play();
+
+
+      // Update unread messages for the relevant chat
+      setUnreadMessages((prevUnreadMessages) => {
+        const newUnreadMessages = { ...prevUnreadMessages };
+        if (msg.chatID !== selectedChatID) {
+          // If the chat is not selected, increment the unread message count
+          newUnreadMessages[msg.chatID] = (newUnreadMessages[msg.chatID] || 0) + 1;
+        }
+        // console.log(newUnreadMessages)
+        return newUnreadMessages;
+      });
+    };
+  
+    socket.on('receiveMessage', refreshChat);
+  
+    return () => {
+      socket.off('receiveMessage', refreshChat);
+    };
+  }, [socket, messages, selectedChatID]);
+  
 
   useEffect(() => {
     if (!socket || !selectedChatID) return;
@@ -84,7 +117,14 @@ const AdminDashboard = () => {
 
   const handleChatSelect = (chatID) => {
     setSelectedChatID(chatID);
-    // setMessages([]);
+    
+    // Mark as read when chat is selected
+    setUnreadMessages((prevUnreadMessages) => {
+      const newUnreadMessages = { ...prevUnreadMessages };
+      newUnreadMessages[chatID] = 0; // Reset unread message count
+      return newUnreadMessages;
+    });
+  
     const selectedChat = activeChats.find((chat) => chat.chatID === chatID);
     if (selectedChat) {
       setCurrentUsername(selectedChat.username);
@@ -99,22 +139,7 @@ const AdminDashboard = () => {
 
   return (
     <div>
-      {/* <AppBar
-      setIsAuthenticated={setIsAuthenticated}
-      isAuthenticated={isAuthenticated}
-      ></AppBar> */}
-      {/* <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            Admin Dashboard
-          </Typography>
-
-          <Button color="inherit" onClick={() => setIsAuthenticated(false)}>
-            Logout
-          </Button>
-        </Toolbar>
-      </AppBar> */}
-
+     
 
       <Container sx={{ display: 'flex', marginTop: 4 }}>
         <Box sx={{ width: '300px', borderRight: '1px solid #ddd', padding: 2 }}>
@@ -122,18 +147,24 @@ const AdminDashboard = () => {
             Active Chats
           </Typography>
           <List>
-            {activeChats.map((chat) => (
-              <ListItem button key={chat.chatID}  onClick={() => handleChatSelect(chat.chatID)}
+          {activeChats.map((chat) => (
+            <ListItem
+              button
+              key={chat.chatID}
+              onClick={() => handleChatSelect(chat.chatID)}
               sx={{
                 backgroundColor: selectedChatID === chat.chatID ? '#1976d2' : 'transparent',
-                color: selectedChatID === chat.chatID ? '#fff' : '#000'
+                color: selectedChatID === chat.chatID ? '#fff' : '#000',
+                border: unreadMessages[chat.chatID] > 0 ? '2px solid red' : 'none', // Add border if unread messages exist
               }}
-              
-              >
-                <ListItemText primary={`Chat with ${chat.username}`} />
-              </ListItem>
-            ))}
-          </List>
+            >
+              <ListItemText
+                primary={`Chat with ${chat.username}`}
+                secondary={unreadMessages[chat.chatID] > 0 ? `Unread Messages: ${unreadMessages[chat.chatID]}` : ''}
+              />
+            </ListItem>
+          ))}
+        </List>
 
           <Typography variant="h6" gutterBottom>
             Inactive Chats

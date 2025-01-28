@@ -63,26 +63,67 @@ app.use(passport.session());
 
 
 app.post('/api/send_sms', async (req,res) => {
-  const {number,message}  = req.body;
+  const {number,message,sender}  = req.body;
   // console.log(req)
   try{
     const sms = await axios.post(`https://messagingsuite.smart.com.ph/cgphttp/servlet/sendmsg?destination=${number}&text=${message}`,{
       httpsAgent: new https.Agent({
         rejectUnauthorized: false
       })
-  },{
+      },{
       auth: {
         username: process.env.suprano_user,
         password: process.env.suprano_pass
       }
     })
 
-    return res.send({message: 'success'})
+    const sms_message = await prisma.sMS.create({ data: {
+      sender: sender,
+      number: number.toString(),
+      message: message,
+      isSent: true
+    }});
+
+
+    return res.send({ number: number, message: message, status: 'sent', message: 'success'})
+  }catch(err){
+    console.log(err)
+    return res.send({ number: number, message: message, status: 'failed', message: 'failed'})
+  }
+  return res.sendStatus(200)
+})
+
+
+app.post('/api/counts', async (req,res) => {
+  const {number,message}  = req.body;
+  // console.log(req)
+  try{
+    const counts = await Promise.all([
+      prisma.chat.count(),  // Count all records
+      prisma.user.count(),
+      prisma.message.count(),
+      prisma.sMS.count(),
+    ]);
+
+
+    return res.send({  chats: counts[0], users: counts[1], messages: counts[2], sms: counts[3]})
   }catch(err){
     console.log(err)
   }
   return res.sendStatus(200)
 })
+
+app.get('/api/sms', async (req,res) => {
+  // console.log(req)
+  try{
+    const data = await prisma.sMS.findMany();
+    return res.send({ message: 'success', sms: data})
+  }catch(err){
+    console.log(err)
+  }
+  return res.sendStatus(200)
+})
+
 
 
 app.post('/api/logout', (req, res) => {
@@ -235,7 +276,9 @@ io.on('connection', (socket) => {
       socket.emit('error', { message: `ChatID ${chatID} not found` });
       return;
     }
-    //socket.emit('receiveMessage')
+    if (adminSocketID) {
+      io.to(adminSocketID).emit('messageCount');
+    }
     // Save message to the database
     await prisma.message.create({
       data: {
@@ -244,6 +287,8 @@ io.on('connection', (socket) => {
         text: message,
       },
     });
+
+    
 
     // Save message to chat history
     chatHistory[chatID].push({ sender, text: message });

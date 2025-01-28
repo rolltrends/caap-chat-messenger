@@ -23,7 +23,7 @@ const fetchData = async () => {
 
 };
 
-const Dashboard = () => {
+const OnlineHelp = () => {
   const [data, setData] = useState(null); // State to store the fetched data
   const [loading, setLoading] = useState(true); // Loading state for data fetching
   const [error, setError] = useState(null); // Error state for API calls
@@ -53,7 +53,7 @@ const Dashboard = () => {
   if (loading) {
     return (
       <Container sx={{ mt: 4 }}>
-        <h2>Dashboard</h2>
+        <h2>OnlineHelp</h2>
         <CircularProgress sx={{ display: 'block', margin: 'auto' }} />
       </Container>
     );
@@ -62,7 +62,7 @@ const Dashboard = () => {
   if (error) {
     return (
       <Container sx={{ mt: 4 }}>
-        <h2>Dashboard</h2>
+        <h2>OnlineHelp</h2>
         <Typography color="error" variant="h6">
           {error}
         </Typography>
@@ -73,48 +73,11 @@ const Dashboard = () => {
   return (
     <div>
       <Container sx={{ mt: 4 }}>
-        <h2>Dashboard</h2>
-        <Grid container spacing={4}>
-          {data && (
-            <>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6">Total Users</Typography>
-                    <Typography variant="h4" color="primary">{data.users}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6">Chats</Typography>
-                    <Typography variant="h4" color="primary">{data.chats}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6">Messages</Typography>
-                    <Typography variant="h4" color="primary">{data.messages}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6">SMS</Typography>
-                    <Typography variant="h4" color="primary">{data.sms}</Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </>
-          )}
-        </Grid>
+        <h2>OnlineHelp</h2>
+        
       </Container>
     </div>
   );
 };
 
-export default Dashboard;
+export default OnlineHelp;
