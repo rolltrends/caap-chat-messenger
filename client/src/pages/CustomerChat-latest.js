@@ -57,6 +57,8 @@ const CustomerChat = () => {
 
     socket.on('receiveMessage', (msg) => {
       if (msg.chatID === chatID) {
+        const sound = new Audio('/sounds/caap-notif.mp3'); // Path to the sound file
+        sound.play();
         setMessages((prev) => [...prev, msg]);
       }
     });

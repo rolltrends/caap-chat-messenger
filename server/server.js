@@ -125,6 +125,17 @@ app.get('/api/sms', async (req,res) => {
 })
 
 
+app.get('/api/chats', async (req,res) => {
+  // console.log(req)
+  try{
+    const data = await prisma.message.findMany();
+    return res.send({ message: 'success', chats: data})
+  }catch(err){
+    console.log(err)
+  }
+  return res.sendStatus(200)
+})
+
 
 app.post('/api/logout', (req, res) => {
   req.logout((err) => {

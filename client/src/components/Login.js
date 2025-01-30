@@ -14,16 +14,20 @@ const AdminLogin = () => {
     e.preventDefault();
 
     // Get the admin credentials from the environment variables
-
-    // Replace with real authentication logic
-    const login = await loginLocal({username: username, password: password})
-    if (login) {
-      // onLogin();
-      setUser(login.data.user)
-      navigate('/dashboard',{state: {isAuthenticated: true}})
-    } else {
-      setError('Invalid credentials. Please try again.');
+    try {
+      const login = await loginLocal({username: username, password: password})
+      if (login) {
+        // onLogin();
+        setUser(login.data.user)
+        navigate('/dashboard',{state: {isAuthenticated: true}})
+      } else {
+        setError('Invalid credentials. Please try again.');
+      }
+    }catch(err){
+      console.log(err)
     }
+    // Replace with real authentication logic
+    
   };
 
 

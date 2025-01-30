@@ -1,82 +1,58 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Grid, Card, CardContent, Typography, CircularProgress } from '@mui/material';
-import axios from 'axios'
-
-// Simulated API call function (you can replace this with actual API logic)
-const fetchData = async () => {
-  // Simulating an API response with random count values
-  // return new Promise((resolve) => {
-  //   setTimeout(() => {
-  //     resolve({
-  //       totalUsers: Math.floor(Math.random() * 2000),
-  //       activeUsers: Math.floor(Math.random() * 1500),
-  //       pendingOrders: Math.floor(Math.random() * 100),
-  //       messages: Math.floor(Math.random() * 200),
-  //     });
-  //   }, 1000); // Simulate a 1-second delay
-  // });
-
-    const counts = await axios.post(`${process.env.REACT_APP_API_URL}/api/counts`)
-
-    return counts.data
-    // return 
-
-};
+import React, { useState, useEffect } from 'react';
+import { Container, Typography, CircularProgress, Button, Box } from '@mui/material';
+import { Worker, Viewer } from '@react-pdf-viewer/core';
+import '@react-pdf-viewer/core/lib/styles/index.css';
+import { pdfjs } from 'react-pdf';
 
 const OnlineHelp = () => {
-  const [data, setData] = useState(null); // State to store the fetched data
-  const [loading, setLoading] = useState(true); // Loading state for data fetching
-  const [error, setError] = useState(null); // Error state for API calls
+  const [pdfFile, setPdfFile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [zoom, setZoom] = useState(1);  // state for zoom level
 
-  // Fetch data from the API
-  const updateData = async () => {
-    try {
-      setLoading(true);
-      const newData = await fetchData();
-      console.log(newData)
-      setData(newData);
-      setLoading(false);
-    } catch (err) {
-      setError('Failed to load data');
-      setLoading(false);
-    }
-  };
-
-  // Fetch data initially and set up an interval to refresh every 10 seconds
   useEffect(() => {
-    updateData(); // Initial data fetch
-    const interval = setInterval(updateData, 10000); // Update data every 10 seconds
+    // Simulating a file fetch or API call to get the PDF file
+    const fetchPdf = async () => {
+      try {
+        const response = await fetch('/help.pdf');
+        const blob = await response.blob();
+        setPdfFile(URL.createObjectURL(blob));
+        setLoading(false);
+      } catch (error) {
+        console.error("Error loading the PDF", error);
+        setLoading(false);
+      }
+    };
 
-    return () => clearInterval(interval); // Clear interval on component unmount
+    fetchPdf();
   }, []);
 
-  if (loading) {
-    return (
-      <Container sx={{ mt: 4 }}>
-        <h2>OnlineHelp</h2>
-        <CircularProgress sx={{ display: 'block', margin: 'auto' }} />
-      </Container>
-    );
-  }
+  const zoomIn = () => {
+    setZoom(prevZoom => prevZoom + 0.1);
+  };
 
-  if (error) {
-    return (
-      <Container sx={{ mt: 4 }}>
-        <h2>OnlineHelp</h2>
-        <Typography color="error" variant="h6">
-          {error}
-        </Typography>
-      </Container>
-    );
-  }
+  const zoomOut = () => {
+    setZoom(prevZoom => Math.max(prevZoom - 0.1, 0.1)); // Prevent zooming out too far
+  };
 
   return (
-    <div>
-      <Container sx={{ mt: 4 }}>
-        <h2>OnlineHelp</h2>
-        
-      </Container>
-    </div>
+    <Container sx={{ mt: 4, height: '80vh' }}>
+      <Typography variant="h4" gutterBottom>
+        Online Help
+      </Typography>
+      {loading ? (
+        <CircularProgress />
+      ) : pdfFile ? (
+        <div style={{ height: '100%' }}>
+          <Worker workerUrl={`https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`}>
+            <Viewer fileUrl={pdfFile} scale={zoom} /> {/* Apply the zoom level here */}
+          </Worker>
+        </div>
+      ) : (
+        <Typography variant="h6" color="error">Failed to load PDF.</Typography>
+      )}
+
+
+    </Container>
   );
 };
 
